@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  moxela-ui:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      # Change this to point at a different MOXELA backend
+      - MOXELA_BACKEND_URL=http://stark.oslo.nevion.com
+    restart: unless-stopped
