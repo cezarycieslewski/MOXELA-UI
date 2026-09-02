@@ -1,4 +1,5 @@
 import React from 'react'
+import { ASSET_BASE } from '../config'
 
 export default function TopBar({ pipeline, onSave, onLoad, onJsonEditor, saving, saveStatus, username, onLogout, nodeCount, edgeCount }) {
   return (
@@ -47,7 +48,7 @@ export default function TopBar({ pipeline, onSave, onLoad, onJsonEditor, saving,
 
       {/* Center: Nevion logo — full wordmark, centered */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'0 16px' }}>
-        <img src="/nevion-logo-white.png" alt="Nevion"
+        <img src={`${ASSET_BASE}nevion-logo-white.png`} alt="Nevion"
           style={{ height:30, width:'auto', minWidth:168, opacity:0.9, display:'block' }} />
       </div>
 

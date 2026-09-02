@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import { ASSET_BASE } from '../config'
+import { API_BASE } from '../api/client'
 
 function MoxelaWordmark({ height = 24 }) {
   return (
@@ -31,7 +33,7 @@ export default function LoginScreen({ onLogin }) {
     e.preventDefault()
     setError(''); setLoading(true)
     try {
-      const res = await fetch('/api/v1/about', { signal: AbortSignal.timeout(8000) })
+      const res = await fetch(`${API_BASE}/about`, { signal: AbortSignal.timeout(8000) })
       if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`)
       const info = await res.json()
       setLoading(false)
@@ -44,7 +46,7 @@ export default function LoginScreen({ onLogin }) {
 
   return (
     <div style={{ width:'100vw', height:'100vh', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-      <img src="/login-bg.png" alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', filter:'brightness(0.55)' }} />
+      <img src={`${ASSET_BASE}login-bg.png`} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', filter:'brightness(0.55)' }} />
       <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(5,10,20,0.65) 0%,rgba(10,20,40,0.45) 100%)' }} />
 
       {/* Login card */}
@@ -52,7 +54,7 @@ export default function LoginScreen({ onLogin }) {
 
         {/* Header */}
         <div style={{ padding:'28px 32px 20px', borderBottom:'2px solid #78BE20', background:'linear-gradient(180deg,rgba(120,190,32,0.09) 0%,transparent 100%)', display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
-          <img src="/moxela-icon.png" alt="MOXELA" width={54} height={54} style={{ objectFit:'contain' }} />
+          <img src={`${ASSET_BASE}moxela-icon.png`} alt="MOXELA" width={54} height={54} style={{ objectFit:'contain' }} />
           <MoxelaWordmark height={24} />
           <div style={{ fontSize:10, color:'#3a6050', letterSpacing:'0.14em', textTransform:'uppercase' }}>Workflow Designer</div>
         </div>
@@ -84,8 +86,8 @@ export default function LoginScreen({ onLogin }) {
 
         {/* Footer — Nevion logo properly sized */}
         <div style={{ padding:'10px 32px 18px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:'1px solid rgba(120,190,32,0.1)' }}>
-          <img src="/nevion-logo-white.png" alt="Nevion" style={{ height:26, width:"auto", minWidth:145, opacity:0.75, display:"block" }} />
-          <span style={{ fontSize:9, color:'#1a3028' }}>v1.0.0</span>
+          <img src={`${ASSET_BASE}nevion-logo-white.png`} alt="Nevion" style={{ height:26, width:"auto", minWidth:145, opacity:0.75, display:"block" }} />
+          <span style={{ fontSize:9, color:'#1a3028' }}>v1.1.0</span>
         </div>
       </div>
     </div>

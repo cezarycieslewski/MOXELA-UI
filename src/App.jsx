@@ -18,6 +18,7 @@ import TrashBin          from './components/TrashBin'
 import PipelineModal     from './components/PipelineModal'
 import JsonEditorModal   from './components/JsonEditorModal'
 import { api }           from './api/client'
+import { ASSET_BASE }    from './config'
 import { ELEMENTS, FORMAT_COLOR, RUNTIME_CONFIG_ELEMENTS } from './data/elements'
 import { canvasToApiPipeline, apiPipelineToCanvas } from './data/serialization'
 
@@ -339,7 +340,7 @@ function FlowCanvas({ user, onLogout }) {
   // ── Canvas watermark ──────────────────────────────────────────────────────
   const canvasBrand = (
     <div style={{ position:'absolute', top:14, left:14, pointerEvents:'none', zIndex:5, display:'flex', alignItems:'center', gap:8, opacity:0.07 }}>
-      <img src="/moxela-icon.png" alt="" width={22} style={{ filter:'brightness(10)' }} />
+      <img src={`${ASSET_BASE}moxela-icon.png`} alt="" width={22} style={{ filter:'brightness(10)' }} />
       <svg height={13} viewBox="396 332 125 32" xmlns="http://www.w3.org/2000/svg"><g transform="translate(397,332.052)"><path d="M13.1896 12.4977 21.9924 21.2076 22.0388 21.2076 30.8416 12.4977 30.8416 30.7536 27.5435 30.7536 27.5667 20.1391 27.4737 20.1391 22.0156 25.667 16.5574 20.1391 16.4644 20.1391 16.4877 30.7536 13.1896 30.7536Z" fill="white"/><path d="M42.1055 31.1484C36.9259 31.1484 32.7685 27.1999 32.7685 22.0437 32.7685 16.8874 36.9259 12.9389 42.1055 12.9389 47.2617 12.9389 51.4425 16.8874 51.4425 22.0437 51.4425 27.1999 47.2617 31.1484 42.1055 31.1484ZM42.1055 16.028C38.8306 16.028 36.206 18.7687 36.206 22.0437 36.206 25.3419 38.8306 28.0592 42.1055 28.0592 45.4036 28.0592 48.005 25.3419 48.005 22.0437 48.005 18.7687 45.4036 16.028 42.1055 16.028Z" fill="white"/><path d="M66.5527 30.7536 62.6043 30.7536 58.9114 24.8773 58.8184 24.8773 55.1021 30.7536 51.1536 30.7536 56.7746 22.0437 51.1536 13.3337 55.1021 13.3337 58.8184 19.2332 58.9114 19.2332 62.6043 13.3337 66.5527 13.3337 60.932 22.0437Z" fill="white"/><path d="M80.4902 27.5947 80.4902 30.7536 67.6924 30.7536 67.6924 13.3337 80.4902 13.3337 80.4902 16.4926 70.9908 16.4926 70.9908 20.4411 78.8877 20.4411 78.8877 23.5998 70.9908 23.5998 70.9908 27.5947Z" fill="white"/><path d="M94.4371 30.7536 82.4523 30.7536 82.4523 13.3337 85.7504 13.3337 85.7504 27.5947 94.4371 27.5947Z" fill="white"/><path d="M107.085 28.2916 99.9085 28.2916 98.84 30.7536 95.0541 30.7536 103.508 12.4977 111.94 30.7536 108.154 30.7536 107.085 28.2916ZM101.256 25.2025 105.738 25.2025 103.555 20.1391 103.462 20.1391Z" fill="white"/></g></svg>
     </div>
   )

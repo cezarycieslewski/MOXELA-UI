@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { ELEMENTS, GROUP_ORDER, LEGEND } from '../data/elements'
+import { ASSET_BASE } from '../config'
 
 function MoxelaWordmark({ height = 24 }) {
   return (
@@ -48,7 +49,7 @@ export default function Sidebar({ onAddNode, pipelines, activePipeline, onSelect
 
       {/* Logo header */}
       <div style={{ padding:'16px 16px 14px', borderBottom:'1px solid #111e2e', background:'#0a1220', display:'flex', alignItems:'center', gap:14 }}>
-        <img src="/moxela-icon.png" alt="MOXELA" width={64} height={64} style={{ objectFit:'contain', flexShrink:0 }} />
+        <img src={`${ASSET_BASE}moxela-icon.png`} alt="MOXELA" width={64} height={64} style={{ objectFit:'contain', flexShrink:0 }} />
         <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
           <MoxelaWordmark height={30} />
           <div style={{ fontSize:11, color:'#3a6888', letterSpacing:'0.08em' }}>Workflow Designer</div>
