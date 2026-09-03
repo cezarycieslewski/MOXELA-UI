@@ -1,5 +1,18 @@
 import { ELEMENTS, DEFAULT_CONFIGS, RUNTIME_CONFIG_ELEMENTS, NULLABLE_FIELDS, NON_NULLABLE_STRING_FIELDS, FORMAT_COLOR } from './elements'
 
+/** Deterministic connection key — also doubles as the API's connection id. */
+export function connectionKey(edge) {
+  return `${edge.source}_${edge.sourceHandle}_to_${edge.target}_${edge.targetHandle}`
+}
+
+/** The element ids and connection ids currently live on the canvas. */
+export function liveIds(nodes, edges) {
+  return {
+    elementIds:    new Set(nodes.map(n => n.id)),
+    connectionIds: new Set(edges.map(connectionKey)),
+  }
+}
+
 /**
  * Serialize canvas state → API PipelineManagerConfig
  *
@@ -7,14 +20,21 @@ import { ELEMENTS, DEFAULT_CONFIGS, RUNTIME_CONFIG_ELEMENTS, NULLABLE_FIELDS, NO
  *   PATCH sends "element_id": null  → backend removes that element
  *   PATCH sends "conn_id": null     → backend removes that connection
  *
- * We track deleted IDs separately and inject them as null entries in the payload.
- * This lets the backend perform a proper merge-delete rather than a full replacement.
+ * `savedElementIds` / `savedConnectionIds` are the ids known to exist on the backend as of
+ * the last load or successful save. Deletions are computed as a diff against them right
+ * here — whatever was in that saved baseline but is no longer on the canvas — rather than
+ * tracked incrementally as the user edits. This matters: if incremental tracking recorded
+ * every removal (including an element added and removed again before ever being saved),
+ * the payload would ask the backend to delete an id it never had, which it rejects with an
+ * error. Diffing against the last confirmed baseline means an add/remove/add cycle that
+ * never reaches a save simply never appears in the payload at all.
  */
-export function canvasToApiPipeline(pipelineMeta, nodes, edges, deletedNodeIds = new Set(), deletedEdgeIds = new Set()) {
+export function canvasToApiPipeline(pipelineMeta, nodes, edges, savedElementIds = new Set(), savedConnectionIds = new Set()) {
   const elements = {}
+  const { elementIds: currentElementIds, connectionIds: currentConnectionIds } = liveIds(nodes, edges)
 
-  // 1. Emit null for every element deleted since last save
-  deletedNodeIds.forEach(id => { elements[id] = null })
+  // 1. Emit null for every previously-saved element no longer on the canvas
+  savedElementIds.forEach(id => { if (!currentElementIds.has(id)) elements[id] = null })
 
   // 2. Emit live elements
   nodes.forEach(node => {
@@ -70,12 +90,12 @@ export function canvasToApiPipeline(pipelineMeta, nodes, edges, deletedNodeIds =
 
   const connections = {}
 
-  // 3. Emit null for every connection deleted since last save
-  deletedEdgeIds.forEach(id => { connections[id] = null })
+  // 3. Emit null for every previously-saved connection no longer on the canvas
+  savedConnectionIds.forEach(id => { if (!currentConnectionIds.has(id)) connections[id] = null })
 
   // 4. Emit live connections
   edges.forEach(edge => {
-    const connId = `${edge.source}_${edge.sourceHandle}_to_${edge.target}_${edge.targetHandle}`
+    const connId = connectionKey(edge)
     // Don't overwrite a null entry if somehow the same connId appears
     if (!(connId in connections) || connections[connId] !== null) {
       connections[connId] = {

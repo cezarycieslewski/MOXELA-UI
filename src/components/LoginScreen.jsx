@@ -87,7 +87,7 @@ export default function LoginScreen({ onLogin }) {
         {/* Footer — Nevion logo properly sized */}
         <div style={{ padding:'10px 32px 18px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:'1px solid rgba(120,190,32,0.1)' }}>
           <img src={`${ASSET_BASE}nevion-logo-white.png`} alt="Nevion" style={{ height:26, width:"auto", minWidth:145, opacity:0.75, display:"block" }} />
-          <span style={{ fontSize:9, color:'#1a3028' }}>v1.1.0</span>
+          <span style={{ fontSize:9, color:'#1a3028' }}>v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.2.0'}</span>
         </div>
       </div>
     </div>

@@ -8,3 +8,16 @@ services:
       # Change this to point at a different MOXELA backend
       - MOXELA_BACKEND_URL=http://stark.oslo.nevion.com
     restart: unless-stopped
+
+  # Login-free build for embedding inside VideoIPath (or another host app).
+  # Uncomment and adjust the port if you need it running alongside the service above.
+  # moxela-ui-embed:
+  #   build:
+  #     context: .
+  #     args:
+  #       BUILD_MODE: embed
+  #   ports:
+  #     - "8081:80"
+  #   environment:
+  #     - MOXELA_BACKEND_URL=http://stark.oslo.nevion.com
+  #   restart: unless-stopped

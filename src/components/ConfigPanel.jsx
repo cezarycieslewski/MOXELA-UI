@@ -39,6 +39,71 @@ function Field({ f, value, onChange }) {
   )
 }
 
+/**
+ * Editor for a "flow map" field — e.g. mxl_input's `flows`, which the API models as
+ * null | map<flow tag, { flow_id }>. Renders one row per flow (tag + flow_id) with
+ * add/remove controls, and reports back either null (no rows) or a plain object shaped
+ * exactly like the API expects: { [tag]: { flow_id } }.
+ *
+ * Rows are kept in local component state, indexed by position — not derived fresh from
+ * `value` on every render. That matters for a freshly-added blank row: the API-shaped
+ * object can't represent a row with an empty tag as a real key, so if rows were derived
+ * straight from `value` each time, a still-untagged row would vanish the instant it was
+ * added (nothing to key it by yet), and the "+ Add Flow" button would look like it does
+ * nothing. Keeping rows in local state lets a blank row stay on screen while the user
+ * types its tag, and only rows with a non-empty tag are included when reporting the
+ * value up via onChange.
+ */
+function FlowMapField({ value, onChange }) {
+  const [rows, setRows] = useState(() => {
+    const entries = value && typeof value === 'object' ? Object.entries(value) : []
+    return entries.map(([tag, cfg]) => ({ tag, flowId: cfg?.flow_id ?? '' }))
+  })
+
+  const s = {
+    background: '#0b1420', border: '1px solid #1e3050', borderRadius: 4,
+    padding: '6px 9px', fontSize: 12, color: '#c0d8f0', outline: 'none', fontFamily: 'inherit',
+  }
+
+  const emit = newRows => {
+    setRows(newRows)
+    const obj = {}
+    newRows.forEach(r => { if (r.tag) obj[r.tag] = { flow_id: r.flowId } })
+    // No tagged rows yet (none added, or added but not yet named) → null, matching
+    // the API's null | map<...> shape rather than sending an empty object.
+    onChange(Object.keys(obj).length === 0 ? null : obj)
+  }
+
+  const updateTag    = (i, tag)    => { const next = rows.slice(); next[i] = { ...next[i], tag }; emit(next) }
+  const updateFlowId = (i, flowId) => { const next = rows.slice(); next[i] = { ...next[i], flowId }; emit(next) }
+  const removeRow = i => emit(rows.filter((_, idx) => idx !== i))
+  const addRow    = () => emit([...rows, { tag:'', flowId:'' }])
+
+  return (
+    <div>
+      {rows.length === 0 && (
+        <div style={{ fontSize:10, color:'#2a4060', marginBottom:8 }}>No flows configured.</div>
+      )}
+      {rows.map((r, i) => (
+        <div key={i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6 }}>
+          <input style={{ ...s, flex:1, minWidth:0 }} value={r.tag} placeholder="flow tag (e.g. cam1)"
+            onChange={e => updateTag(i, e.target.value.replace(/[^a-zA-Z0-9_]/g,'_'))} />
+          <input style={{ ...s, flex:1, minWidth:0 }} value={r.flowId} placeholder="MXL flow ID"
+            onChange={e => updateFlowId(i, e.target.value)} />
+          <button onClick={() => removeRow(i)} title="Remove flow" style={{
+            background:'#0b1420', border:'1px solid #3a1010', borderRadius:4, color:'#c04040',
+            width:24, height:24, flexShrink:0, cursor:'pointer', fontSize:13, lineHeight:1,
+          }}>×</button>
+        </div>
+      ))}
+      <button onClick={addRow} style={{
+        background:'none', border:'1px dashed #1e3050', borderRadius:4, color:'#3a6050',
+        padding:'5px 10px', fontSize:11, cursor:'pointer', width:'100%',
+      }}>+ Add Flow</button>
+    </div>
+  )
+}
+
 export default function ConfigPanel({ node, nodeId, onClose, onSave }) {
   const def      = ELEMENTS[node.data.typeKey] || {}
   const fields   = CONFIG_FIELDS[node.data.typeKey] || []
@@ -131,7 +196,9 @@ export default function ConfigPanel({ node, nodeId, onClose, onSave }) {
                     {f.label}
                     {f.nullable && <span style={{ color:'#2a4060', fontWeight:400, marginLeft:5 }}>(optional)</span>}
                   </label>
-                  <Field f={f} value={values[f.key]} onChange={v => setValues(p => ({ ...p, [f.key]: v }))} />
+                  {f.type === 'flowmap'
+                    ? <FlowMapField value={values[f.key]} onChange={v => setValues(p => ({ ...p, [f.key]: v }))} />
+                    : <Field f={f} value={values[f.key]} onChange={v => setValues(p => ({ ...p, [f.key]: v }))} />}
                   {f.hint && <div style={{ fontSize:9, color:'#2a4060', marginTop:3 }}>{f.hint}</div>}
                 </div>
               ))}

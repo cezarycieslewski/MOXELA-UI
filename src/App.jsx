@@ -17,10 +17,11 @@ import ConfigPanel       from './components/ConfigPanel'
 import TrashBin          from './components/TrashBin'
 import PipelineModal     from './components/PipelineModal'
 import JsonEditorModal   from './components/JsonEditorModal'
+import AboutModal        from './components/AboutModal'
 import { api }           from './api/client'
 import { ASSET_BASE }    from './config'
 import { ELEMENTS, FORMAT_COLOR, RUNTIME_CONFIG_ELEMENTS } from './data/elements'
-import { canvasToApiPipeline, apiPipelineToCanvas } from './data/serialization'
+import { canvasToApiPipeline, apiPipelineToCanvas, liveIds } from './data/serialization'
 
 const nodeTypes = {
   moxelaNode:       MoxelaNode,
@@ -31,6 +32,12 @@ const nodeTypes = {
 const edgeTypes = {
   default: DeletableEdge,
 }
+
+// Embed build (npm run build:embed / .env.embed) skips the login gate entirely — for
+// mounting MOXELA UI inside VideoIPath, where there's no separate credential check to
+// gate on anyway (see LoginScreen.jsx: it only ever did a reachability check, not real
+// auth). See also TopBar's onLogout, which is hidden in this mode.
+const EMBED_MODE = import.meta.env.VITE_EMBED_MODE === 'true'
 
 let idCounter = 1
 const mkId = typeKey => `${typeKey}_${idCounter++}`
@@ -53,8 +60,12 @@ function FlowCanvas({ user, onLogout }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
 
-  const deletedNodeIds = useRef(new Set())
-  const deletedEdgeIds = useRef(new Set())
+  // Element/connection ids known to exist on the backend as of the last load or
+  // successful save. canvasToApiPipeline diffs the live canvas against these to
+  // figure out what to delete — see the comment there for why this beats tracking
+  // deletions incrementally as the user edits.
+  const savedElementIds    = useRef(new Set())
+  const savedConnectionIds = useRef(new Set())
 
   const [draggingNodeId, setDraggingNodeId] = useState(null)
   const dragTimerRef = useRef(null)
@@ -63,19 +74,10 @@ function FlowCanvas({ user, onLogout }) {
   const [configNodeId, setConfigNodeId] = useState(null)
   const [showPipelineModal, setShowPipelineModal] = useState(false)
   const [showJsonEditor,    setShowJsonEditor]    = useState(false)
+  const [showAbout,         setShowAbout]         = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [saveStatus, setSaveStatus] = useState(null)
   const [loading,    setLoading]    = useState(false)
-
-  // ── Track edges deleted via DeletableEdge's X button ─────────────────────
-  useEffect(() => {
-    const handler = e => {
-      const { edgeId } = e.detail || {}
-      if (edgeId) deletedEdgeIds.current.add(edgeId)
-    }
-    window.addEventListener('moxela:edgedeleted', handler)
-    return () => window.removeEventListener('moxela:edgedeleted', handler)
-  }, [])
 
   // ── Node data update from inline node components ────────────────────────────
   useEffect(() => {
@@ -123,10 +125,13 @@ function FlowCanvas({ user, onLogout }) {
         )
         const vp  = getViewport()
         const meta = { ...pipelineMeta, viewport: vp }
-        const apiPipeline = canvasToApiPipeline(meta, patchedNodes, currentEdges, deletedNodeIds.current, deletedEdgeIds.current)
+        const apiPipeline = canvasToApiPipeline(meta, patchedNodes, currentEdges, savedElementIds.current, savedConnectionIds.current)
         const updated = { ...pipelines, [activePipelineId]: apiPipeline }
         const result  = await api.savePipelines({ pipelines: updated })
         if (result.ok === false) throw new Error(result.msg || result.err)
+        const live = liveIds(patchedNodes, currentEdges)
+        savedElementIds.current    = live.elementIds
+        savedConnectionIds.current = live.connectionIds
         setPipelines(updated)
         setSaveStatus({ ok: true, msg: `Logo position applied (${runtime_config.x_pos}, ${runtime_config.y_pos})` })
         window.dispatchEvent(new CustomEvent('moxela:applyruntime:result', { detail: { nodeId, ok: true } }))
@@ -168,12 +173,15 @@ function FlowCanvas({ user, onLogout }) {
     if (activePipelineId && rfInstance) viewportCache.current[activePipelineId] = getViewport()
     setActivePipelineId(id)
     setPipelineMeta({ name: pipeline.name, description: pipeline.description, auto_av_sync: pipeline.auto_av_sync })
-    deletedNodeIds.current = new Set()
-    deletedEdgeIds.current = new Set()
     const { nodes: n, edges: e, viewport } = apiPipelineToCanvas(id, pipeline)
     // Stamp all edges with our custom type
     setNodes(n)
-    setEdges(e.map(edge => ({ ...edge, type: 'default' })))
+    const stampedEdges = e.map(edge => ({ ...edge, type: 'default' }))
+    setEdges(stampedEdges)
+    // These elements/connections are now the confirmed backend baseline.
+    const live = liveIds(n, stampedEdges)
+    savedElementIds.current    = live.elementIds
+    savedConnectionIds.current = live.connectionIds
     const vp = viewport || viewportCache.current[id]
     if (vp) setTimeout(() => setViewport(vp), 50)
     else if (rfInstance) setTimeout(() => rfInstance.fitView({ padding: 0.15 }), 50)
@@ -186,12 +194,13 @@ function FlowCanvas({ user, onLogout }) {
     try {
       const vp  = getViewport()
       const meta = { ...pipelineMeta, viewport: vp }
-      const apiPipeline = canvasToApiPipeline(meta, nodes, edges, deletedNodeIds.current, deletedEdgeIds.current)
+      const apiPipeline = canvasToApiPipeline(meta, nodes, edges, savedElementIds.current, savedConnectionIds.current)
       const updated = { ...pipelines, [activePipelineId]: apiPipeline }
       const result  = await api.savePipelines({ pipelines: updated })
       if (result.ok === false) throw new Error(result.msg || result.err || 'Unknown error')
-      deletedNodeIds.current = new Set()
-      deletedEdgeIds.current = new Set()
+      const live = liveIds(nodes, edges)
+      savedElementIds.current    = live.elementIds
+      savedConnectionIds.current = live.connectionIds
       setPipelines(updated)
       setSaveStatus({ ok: true, msg: 'Saved' })
     } catch (err) {
@@ -208,8 +217,9 @@ function FlowCanvas({ user, onLogout }) {
     setNodes(n)
     setEdges(e.map(edge => ({ ...edge, type: 'default' })))
     setPipelineMeta({ name: parsed.name, description: parsed.description, auto_av_sync: parsed.auto_av_sync })
-    deletedNodeIds.current = new Set()
-    deletedEdgeIds.current = new Set()
+    // Deliberately leave savedElementIds/savedConnectionIds untouched — they still
+    // reflect the last confirmed backend state. The next Save diffs the JSON-edited
+    // canvas against that baseline, so anything the JSON removed is correctly deleted.
     setSaveStatus({ ok: true, msg: 'JSON applied to canvas — remember to Save to backend' })
     setTimeout(() => setSaveStatus(null), 5000)
   }, [setNodes, setEdges])
@@ -220,7 +230,7 @@ function FlowCanvas({ user, onLogout }) {
     const pl = { name:meta.name, description:meta.description, auto_av_sync:meta.auto_av_sync, elements:{}, connections:{} }
     setPipelines(p => ({...p,[id]:pl}))
     setActivePipelineId(id); setPipelineMeta(meta)
-    deletedNodeIds.current = new Set(); deletedEdgeIds.current = new Set()
+    savedElementIds.current = new Set(); savedConnectionIds.current = new Set()
     setNodes([]); setEdges([])
   }
 
@@ -254,23 +264,18 @@ function FlowCanvas({ user, onLogout }) {
   }, [nodes, setEdges])
 
   // ── Nodes / edges changes ─────────────────────────────────────────────────
+  // Deletion bookkeeping for the API payload happens as a diff at save time (see
+  // canvasToApiPipeline / savedElementIds / savedConnectionIds above) — these handlers
+  // just need to keep the canvas itself consistent, e.g. dropping edges attached to a
+  // node that was just removed.
   const handleNodesChange = useCallback(changes => {
     changes.forEach(change => {
       if (change.type === 'remove') {
-        deletedNodeIds.current.add(change.id)
-        setEdges(eds => {
-          eds.filter(e => e.source===change.id||e.target===change.id).forEach(e => deletedEdgeIds.current.add(e.id))
-          return eds.filter(e => e.source!==change.id&&e.target!==change.id)
-        })
+        setEdges(eds => eds.filter(e => e.source!==change.id && e.target!==change.id))
       }
     })
     onNodesChange(changes)
   }, [onNodesChange, setEdges])
-
-  const handleEdgesChange = useCallback(changes => {
-    changes.forEach(change => { if (change.type==='remove') deletedEdgeIds.current.add(change.id) })
-    onEdgesChange(changes)
-  }, [onEdgesChange])
 
   // ── Drag to trash ─────────────────────────────────────────────────────────
   const onNodeDragStart = useCallback((_e, node) => {
@@ -283,11 +288,7 @@ function FlowCanvas({ user, onLogout }) {
   const deleteNodeById = useCallback(nodeId => {
     if (dragTimerRef.current) clearTimeout(dragTimerRef.current)
     setDraggingNodeId(null)
-    deletedNodeIds.current.add(nodeId)
-    setEdges(eds => {
-      eds.filter(e => e.source===nodeId||e.target===nodeId).forEach(e => deletedEdgeIds.current.add(e.id))
-      return eds.filter(e => e.source!==nodeId&&e.target!==nodeId)
-    })
+    setEdges(eds => eds.filter(e => e.source!==nodeId && e.target!==nodeId))
     setNodes(nds => nds.filter(n => n.id!==nodeId))
   }, [setNodes, setEdges])
 
@@ -319,7 +320,10 @@ function FlowCanvas({ user, onLogout }) {
       return { ...n, id:newElemId, data:{ ...n.data, config, runtime_config:runtimeConfig, nodeId:newElemId } }
     }))
     if (nodeId!==newElemId) {
-      deletedNodeIds.current.add(nodeId)
+      // No manual bookkeeping needed here: if `nodeId` was part of the last saved
+      // baseline, the next save's diff (see canvasToApiPipeline) will see it's now
+      // missing from the live canvas (replaced by newElemId) and correctly emit a
+      // delete for the old id alongside a create for the new one.
       setEdges(eds => eds.map(e => ({ ...e, source:e.source===nodeId?newElemId:e.source, target:e.target===nodeId?newElemId:e.target })))
     }
   }, [setNodes, setEdges])
@@ -331,8 +335,8 @@ function FlowCanvas({ user, onLogout }) {
       return canvasToApiPipeline(
         { ...pipelineMeta, viewport: null },
         nodes, edges,
-        deletedNodeIds.current,
-        deletedEdgeIds.current
+        savedElementIds.current,
+        savedConnectionIds.current
       )
     } catch { return null }
   }, [nodes, edges, pipelineMeta, activePipelineId])
@@ -356,7 +360,8 @@ function FlowCanvas({ user, onLogout }) {
       />
       <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
         <Sidebar onAddNode={addNode} pipelines={pipelines} activePipeline={activePipelineId}
-          onSelectPipeline={id => selectPipeline(id)} onNewPipeline={() => setShowPipelineModal(true)} onDeletePipeline={deletePipeline} />
+          onSelectPipeline={id => selectPipeline(id)} onNewPipeline={() => setShowPipelineModal(true)} onDeletePipeline={deletePipeline}
+          onShowAbout={() => setShowAbout(true)} />
         <div ref={wrapRef} style={{ flex:1, height:'100%', position:'relative' }}>
           {!activePipelineId && (
             <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', zIndex:5, pointerEvents:'none' }}>
@@ -369,7 +374,7 @@ function FlowCanvas({ user, onLogout }) {
           )}
           <ReactFlow
             nodes={nodes} edges={edges}
-            onNodesChange={handleNodesChange} onEdgesChange={handleEdgesChange}
+            onNodesChange={handleNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect} onDrop={onDrop} onDragOver={onDragOver}
             onInit={setRfInstance}
             onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop}
@@ -401,6 +406,7 @@ function FlowCanvas({ user, onLogout }) {
           )}
         </div>
       </div>
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
       {showPipelineModal && <PipelineModal onSave={createPipeline} onClose={() => setShowPipelineModal(false)} />}
       {loading && (
         <div style={{ position:'fixed', bottom:20, right:20, background:'#0e1826', border:'1px solid #1e3050', borderRadius:8, padding:'10px 16px', fontSize:12, color:'#78BE20', zIndex:300 }}>Loading from backend…</div>
@@ -410,11 +416,11 @@ function FlowCanvas({ user, onLogout }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => EMBED_MODE ? { username: 'MOXELA', embedded: true } : null)
   if (!user) return <LoginScreen onLogin={setUser} />
   return (
     <ReactFlowProvider>
-      <FlowCanvas user={user} onLogout={() => setUser(null)} />
+      <FlowCanvas user={user} onLogout={EMBED_MODE ? null : () => setUser(null)} />
     </ReactFlowProvider>
   )
 }

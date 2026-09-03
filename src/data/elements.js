@@ -23,6 +23,12 @@ export const ELEMENTS = {
     inputs:[{id:'video_in',name:'Video',format:'video'},{id:'audio_in',name:'Audio',format:'audio'}],
     outputs:[{id:'video',name:'Video',format:'video'},{id:'audio',name:'Audio',format:'audio'}] },
   logo_inserter:{ name:'Logo Inserter',    cat:'OVL', group:'Utility', stripe:'#d07030', inputs:[{id:'in',name:'Input',format:'video'}], outputs:[{id:'out',name:'Output',format:'video'}] },
+  // Output pad modeled as a single 'video' pad (id:'out'), matching the same convention
+  // already used for ndi_input — a source whose underlying signal can carry both video and
+  // audio but is represented on the canvas as one combined output. Verify against your
+  // server's live GET /descriptors/elements response and adjust here if your MXL sources
+  // are wired differently (e.g. one pad per configured flow).
+  mxl_input:    { name:'MXL Input',        cat:'IN',  group:'Input',   stripe:'#78BE20', inputs:[], outputs:[{id:'out',name:'Output',format:'video'}] },
 }
 
 export const GROUP_ORDER = ['Input','Output','Decode','Encode','Routing','Utility']
@@ -67,6 +73,7 @@ export const DEFAULT_CONFIGS = {
   // av_sync and logo_inserter: these go in runtime_config, not config
   av_sync:      { audio_delay_ms: 0, video_delay_ms: 0, target_latency_ms: 80, max_drift_ms: 250, max_video_depth: 60, max_audio_depth: 100 },
   logo_inserter: { x_pos: 0, y_pos: 0 },
+  mxl_input:    { mxl_domain: '', flows: null },
 }
 
 export const CONFIG_FIELDS = {
@@ -177,6 +184,10 @@ export const CONFIG_FIELDS = {
     { key:'x_pos', label:'X Position (px)', type:'number', min:0 },
     { key:'y_pos', label:'Y Position (px)', type:'number', min:0 },
   ],
+  mxl_input: [
+    { key:'mxl_domain', label:'MXL Domain', type:'text', hint:'Path to the shared-memory directory where the MXL domain is mapped.' },
+    { key:'flows',       label:'Flows',      type:'flowmap', hint:'Named MXL flows this input subscribes to — maps a flow tag (e.g. "cam1") to the MXL flow ID it subscribes to. Leave empty for none.' },
+  ],
 }
 
 /**
@@ -200,6 +211,7 @@ export const NULLABLE_FIELDS = {
   av_sync:      new Set([]),
   logo_inserter:new Set([]),
   udp_input:    new Set([]),
+  mxl_input:    new Set(['flows']),
 }
 
 /**
@@ -210,4 +222,5 @@ export const NON_NULLABLE_STRING_FIELDS = {
   ndi_output:   new Set(['name','groups']),
   multiplexer:  new Set(['service_name']),
   ndi_input:    new Set(['addr','name']),
+  mxl_input:    new Set(['mxl_domain']),
 }

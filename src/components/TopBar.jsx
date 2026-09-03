@@ -59,21 +59,25 @@ export default function TopBar({ pipeline, onSave, onLoad, onJsonEditor, saving,
         {nodeCount} nodes · {edgeCount} edges
       </span>
 
-      <div style={{ width:1, height:22, background:'#1a2e44', marginRight:12 }} />
+      {onLogout && (
+        <>
+          <div style={{ width:1, height:22, background:'#1a2e44', marginRight:12 }} />
 
-      <button onClick={onLogout} style={{
-        background:'rgba(120,190,32,0.10)',
-        border:'1px solid rgba(120,190,32,0.28)',
-        borderRadius:5, padding:'5px 13px',
-        fontSize:11, color:'#78BE20',
-        cursor:'pointer', display:'flex', alignItems:'center', gap:7,
-        whiteSpace:'nowrap',
-      }}>
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 8H3M6 5l-3 3 3 3M11 3h2a1 1 0 011 1v8a1 1 0 01-1 1h-2"/>
-        </svg>
-        {username}
-      </button>
+          <button onClick={onLogout} style={{
+            background:'rgba(120,190,32,0.10)',
+            border:'1px solid rgba(120,190,32,0.28)',
+            borderRadius:5, padding:'5px 13px',
+            fontSize:11, color:'#78BE20',
+            cursor:'pointer', display:'flex', alignItems:'center', gap:7,
+            whiteSpace:'nowrap',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 8H3M6 5l-3 3 3 3M11 3h2a1 1 0 011 1v8a1 1 0 01-1 1h-2"/>
+            </svg>
+            {username}
+          </button>
+        </>
+      )}
     </div>
   )
 }

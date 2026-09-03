@@ -17,7 +17,8 @@ function MoxelaWordmark({ height = 24 }) {
   )
 }
 
-export default function Sidebar({ onAddNode, pipelines, activePipeline, onSelectPipeline, onNewPipeline, onDeletePipeline }) {
+export default function Sidebar({ onAddNode, pipelines, activePipeline, onSelectPipeline, onNewPipeline, onDeletePipeline, onShowAbout }) {
+  const [logoHovered, setLogoHovered] = useState(false)
   const [search, setSearch] = useState('')
   const [tab, setTab]       = useState('elements')
 
@@ -47,14 +48,24 @@ export default function Sidebar({ onAddNode, pipelines, activePipeline, onSelect
   return (
     <aside style={{ width:290, background:'#0e1826', borderRight:'1px solid #1a2638', display:'flex', flexDirection:'column', flexShrink:0, userSelect:'none' }}>
 
-      {/* Logo header */}
-      <div style={{ padding:'16px 16px 14px', borderBottom:'1px solid #111e2e', background:'#0a1220', display:'flex', alignItems:'center', gap:14 }}>
+      {/* Logo header — click to open the About dialog */}
+      <button
+        onClick={onShowAbout}
+        onMouseEnter={() => setLogoHovered(true)}
+        onMouseLeave={() => setLogoHovered(false)}
+        title="About MOXELA"
+        style={{
+          padding:'16px 16px 14px', borderBottom:'1px solid #111e2e',
+          background: logoHovered ? '#0d1626' : '#0a1220', display:'flex', alignItems:'center', gap:14,
+          border:'none', width:'100%', cursor:'pointer', textAlign:'left', transition:'background 0.12s',
+        }}
+      >
         <img src={`${ASSET_BASE}moxela-icon.png`} alt="MOXELA" width={64} height={64} style={{ objectFit:'contain', flexShrink:0 }} />
         <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
           <MoxelaWordmark height={30} />
-          <div style={{ fontSize:11, color:'#3a6888', letterSpacing:'0.08em' }}>Workflow Designer</div>
+          <div style={{ fontSize:11, color: logoHovered ? '#78BE20' : '#3a6888', letterSpacing:'0.08em', transition:'color 0.12s' }}>Workflow Designer</div>
         </div>
-      </div>
+      </button>
 
       {/* Tabs */}
       <div style={{ display:'flex', borderBottom:'1px solid #111e2e' }}>

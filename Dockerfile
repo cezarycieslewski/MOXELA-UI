@@ -4,7 +4,12 @@ WORKDIR /app
 COPY package.json .
 RUN npm install
 COPY . .
-RUN npm run build
+
+# BUILD_MODE=embed skips the login screen entirely (VITE_EMBED_MODE, see App.jsx and
+# .env.embed) — for mounting MOXELA UI inside VideoIPath.
+#   docker build --build-arg BUILD_MODE=embed -t moxela-ui:embed .
+ARG BUILD_MODE=standard
+RUN if [ "$BUILD_MODE" = "embed" ]; then npm run build:embed; else npm run build; fi
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM nginx:alpine
